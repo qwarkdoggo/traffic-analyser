@@ -4,6 +4,11 @@ from parser import load_traffic
 from analyser_detections import detect_insecure_protocols
 from pcap_to_csv import convert_pcap_to_csv
 from report import save_report
+from analyser_detections import (
+    detect_insecure_protocols,
+    detect_high_volume_sources,
+    detect_port_scans_time_window,
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -21,6 +26,12 @@ packets = load_traffic(CSV_FILE)
 
 alerts = []
 alerts.extend(detect_insecure_protocols(packets))
+alerts.extend(detect_high_volume_sources(packets))
+alerts.extend(detect_port_scans_time_window(
+    packets,
+    port_threshold=20,
+    time_window=5.0
+))
 
 print(f"Detected {len(alerts)} alerts")
 

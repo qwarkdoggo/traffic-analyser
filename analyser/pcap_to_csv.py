@@ -22,6 +22,7 @@ def convert_pcap_to_csv(pcap_file, csv_file):
         "-e", "eth.src",
         "-e", "eth.dst",
         "-e", "_ws.col.Protocol",
+        "-e", "tcp.dstport",
         "-e", "frame.len",
         "-e", "_ws.col.Info",
     ]
