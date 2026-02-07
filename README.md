@@ -33,3 +33,6 @@ python analyser/main.py
 PCAP / CSV files are excluded from git
 Designed for SOC / DFIR learning and portfolio use
 Easily extensible for new detections
+
+**## Update 07/02/2026**
+Add port scan detections using TShark dst ports
