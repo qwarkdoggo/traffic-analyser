@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-=======
 import os
->>>>>>> master
 import json
 from datetime import datetime
 from aggregator import aggregate_by_source
@@ -17,8 +14,6 @@ def save_report(alerts, output_path):
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
-<<<<<<< HEAD
-=======
 
     _secure_file(output_path)
 
@@ -64,4 +59,3 @@ def format_alerts_table(alerts):
     ]
 
     return "\n".join(summary + [""] + rows)
->>>>>>> master

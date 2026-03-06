@@ -1,8 +1,5 @@
 import os
-<<<<<<< HEAD
-=======
 import argparse
->>>>>>> master
 
 from parser import load_traffic
 from analyser_detections import detect_insecure_protocols
@@ -13,15 +10,6 @@ from analyser_detections import (
     detect_high_volume_sources,
     detect_port_scans_time_window,
 )
-<<<<<<< HEAD
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-PCAP_FILE = os.path.join(BASE_DIR, "..", "data", "traffic.pcap")
-CSV_FILE  = os.path.join(BASE_DIR, "..", "data", "traffic.csv")
-OUTPUT_JSON = os.path.join(BASE_DIR, "..", "data", "report.json")
-
-=======
 from argparse import ArgumentParser
 
 parser = ArgumentParser(description="Traffic analyser command line interface")
@@ -74,7 +62,6 @@ if not args.quiet:
     print("Using PCAP:", PCAP_FILE)
     print("Exists:", os.path.exists(PCAP_FILE))
 
->>>>>>> master
 if os.path.exists(PCAP_FILE):
     print("[*] PCAP found, converting to CSV...")
     convert_pcap_to_csv(PCAP_FILE, CSV_FILE)
@@ -85,19 +72,6 @@ packets = load_traffic(CSV_FILE)
 
 alerts = []
 alerts.extend(detect_insecure_protocols(packets))
-<<<<<<< HEAD
-alerts.extend(detect_high_volume_sources(packets))
-alerts.extend(detect_port_scans_time_window(
-    packets,
-    port_threshold=20,
-    time_window=5.0
-))
-
-print(f"Detected {len(alerts)} alerts")
-
-save_report(alerts, OUTPUT_JSON)
-print(f"Report saved to {OUTPUT_JSON}")
-=======
 alerts.extend(detect_high_volume_sources(packets, threshold=args.threshold))
 alerts.extend(detect_port_scans_time_window(
     packets,
@@ -124,4 +98,3 @@ elif args.format == "table":
         print(f"Table report written to {output_path}")
     else:
         print(table_text)
->>>>>>> master
