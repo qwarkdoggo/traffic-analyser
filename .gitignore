@@ -1,0 +1,10 @@
+# data
+data/*.pcap
+data/*.csv
+data/*.json
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.env
