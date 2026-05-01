@@ -1,12 +1,1 @@
-2026-05-01 13:05:24,694 - INFO - Processing PCAP file: c:\Users\Administrator\Desktop\PROJECTS\traffic-analyser-main\analyser\..\data\traffic.pcap
-2026-05-01 13:05:25,551 - INFO - Successfully converted c:\Users\Administrator\Desktop\PROJECTS\traffic-analyser-main\analyser\..\data\traffic.pcap to c:\Users\Administrator\Desktop\PROJECTS\traffic-analyser-main\analyser\..\data\traffic.csv
-2026-05-01 13:05:25,564 - INFO - Successfully loaded 951 packets from c:\Users\Administrator\Desktop\PROJECTS\traffic-analyser-main\analyser\..\data\traffic.csv
-2026-05-01 13:05:25,564 - INFO - Loaded 951 packets from c:\Users\Administrator\Desktop\PROJECTS\traffic-analyser-main\analyser\..\data\traffic.csv
-2026-05-01 13:05:25,564 - INFO - Detection complete: 2 alerts generated
-2026-05-01 13:05:25,565 - INFO - JSON report saved to c:\Users\Administrator\Desktop\PROJECTS\traffic-analyser-main\analyser\..\data\report.json
-2026-05-01 13:11:02,773 - INFO - Processing PCAP file: c:\Users\Administrator\Desktop\PROJECTS\traffic-analyser-main\analyser\..\data\traffic.pcap
-2026-05-01 13:11:02,917 - INFO - Successfully converted c:\Users\Administrator\Desktop\PROJECTS\traffic-analyser-main\analyser\..\data\traffic.pcap to c:\Users\Administrator\Desktop\PROJECTS\traffic-analyser-main\analyser\..\data\traffic.csv
-2026-05-01 13:11:02,933 - INFO - Successfully loaded 951 packets from c:\Users\Administrator\Desktop\PROJECTS\traffic-analyser-main\analyser\..\data\traffic.csv
-2026-05-01 13:11:02,933 - INFO - Loaded 951 packets from c:\Users\Administrator\Desktop\PROJECTS\traffic-analyser-main\analyser\..\data\traffic.csv
-2026-05-01 13:11:02,937 - INFO - Detection complete: 2 alerts generated
-2026-05-01 13:11:02,938 - INFO - JSON report saved to c:\Users\Administrator\Desktop\PROJECTS\traffic-analyser-main\analyser\..\data\report.json
+
