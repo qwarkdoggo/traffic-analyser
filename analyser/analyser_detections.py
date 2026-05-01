@@ -1,5 +1,9 @@
 from collections import Counter
 from collections import defaultdict
+import ipaddress
+import logging
+
+logger = logging.getLogger(__name__)
 
 INSECURE_PROTOCOLS = {
     "HTTP": "MEDIUM",
@@ -10,22 +14,49 @@ INSECURE_PROTOCOLS = {
     "IMAP": "LOW",
 }
 
+
+def _is_valid_ip(ip_str: str) -> bool:
+    """Validate if string is a valid IPv4 or IPv6 address."""
+    if not ip_str or not isinstance(ip_str, str):
+        return False
+    try:
+        ipaddress.ip_address(ip_str.strip())
+        return True
+    except ValueError:
+        return False
+
+
+def _is_valid_mac(mac_str: str) -> bool:
+    """Validate if string is a valid MAC address."""
+    if not mac_str or not isinstance(mac_str, str):
+        return False
+    mac_str = mac_str.strip()
+    return len(mac_str) == 17 and all(c in "0123456789abcdefABCDEF:-" for c in mac_str)
+
 def detect_insecure_protocols(packets):
     alerts = []
     for p in packets:
         proto = p.get("Protocol", "").upper()
+        source = p.get("Source", "")
+        dest = p.get("Destination", "")
+
+        # Validate MAC addresses
+        if not _is_valid_mac(source) or not _is_valid_mac(dest):
+            logger.debug(f"Skipping packet with invalid MAC: src={source}, dst={dest}")
+            continue
+
         if proto in INSECURE_PROTOCOLS:
-            alerts.append ({
+            alerts.append({
                 "Type": "Insecure Protocol Detected",
                 "Severity": INSECURE_PROTOCOLS[proto],
-                "Source": p.get("Source"),
-                "Destination": p.get("Destination"),
+                "Source": source,
+                "Destination": dest,
                 "Protocol": proto,
-                "Info" : p.get("Info")
+                "Info": p.get("Info")
             })
     return alerts
 def detect_high_volume_sources(packets, threshold=100):
-    counter = Counter(p.get("Source") for p in packets if p.get("Source"))
+    counter = Counter(p.get("Source") for p in packets if p.get("Source") and _is_valid_mac(p.get("Source", "")))
     alerts = []
 
     for src, count in counter.items():
@@ -48,8 +79,15 @@ def detect_port_scans(packets, port_threshold=20):
         src = p.get("Source")
         port = p.get("DestinationPort")
 
-        if src and port:
-            src_ports[src].add(port)
+        if src and port and _is_valid_mac(src):
+            try:
+                port_num = int(port)
+                if 0 < port_num <= 65535:
+                    src_ports[src].add(port_num)
+            except (ValueError, TypeError):
+                logger.debug(f"Skipping invalid port: {port}")
+                continue
+
     alerts = []
 
     for src, ports in src_ports.items():
@@ -59,7 +97,7 @@ def detect_port_scans(packets, port_threshold=20):
                 "Severity": "HIGH",
                 "Source": src,
                 "Ports Count": len(ports),
-                "PortsSample": sorted(list(ports))[:20] # as a sample can also be lower or higher
+                "PortsSample": sorted(list(ports))[:20]
             })
     return alerts
 def detect_port_scans_time_window(
@@ -76,22 +114,32 @@ def detect_port_scans_time_window(
         port = p.get("DestinationPort")
         t = p.get("Time")
 
-        if src and port and t is not None:
-            src_activity[src].append((t, port))
+        if src and port and t is not None and _is_valid_mac(src):
+            try:
+                port_num = int(port)
+                if 0 < port_num <= 65535:
+                    src_activity[src].append((t, port_num))
+            except (ValueError, TypeError):
+                logger.debug(f"Skipping invalid port for time-window scan: {port}")
+                continue
+
     alerts = []
-    
+
     for src, events in src_activity.items():
         events.sort()
 
-        window_ports=set()
-        window_start = [0][0]
+        if not events:
+            continue
+
+        window_ports = set()
+        window_start = events[0][0]
         for t, port in events:
             if t - window_start <= time_window:
                 window_ports.add(port)
             else:
                 window_start = t
                 window_ports = {port}
-    
+
             if len(window_ports) >= port_threshold:
                 alerts.append({
                     "Type": "Port Scan Detected",

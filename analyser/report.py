@@ -25,7 +25,7 @@ def _secure_file(path):
     it at least attempts to clear write/read access for other users.
     """
     try:
-        os.chmod(path, 0o644)
+        os.chmod(path, 0o600)
     except Exception:
         pass
 
