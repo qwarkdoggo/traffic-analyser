@@ -1,1 +1,5 @@
 # Wireshark+TShark
+requests>=2.28.0
+cryptography>=38.0.0
+# For local threat intelligence and rate limiting (SQLite included in Python)
+# No additional dependencies needed for core functionality

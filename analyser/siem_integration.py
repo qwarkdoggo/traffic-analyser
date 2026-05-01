@@ -4,8 +4,32 @@ import socket
 from datetime import datetime
 from typing import List, Dict, Any
 from urllib.parse import quote
+from input_validation import sanitize_alert
 
 logger = logging.getLogger(__name__)
+
+
+def _escape_cef_value(value: Any) -> str:
+    """
+    Escape special characters in CEF field values.
+    CEF format uses pipe (|) and equals (=) as delimiters.
+    Reference: ArcSight CEF Format
+    """
+    if value is None:
+        return ""
+
+    value_str = str(value)
+
+    # Escape backslash first (it's the escape character)
+    value_str = value_str.replace("\\", "\\\\")
+
+    # Escape pipe (|), equals (=), and newlines
+    value_str = value_str.replace("|", "\\|")
+    value_str = value_str.replace("=", "\\=")
+    value_str = value_str.replace("\n", "\\n")
+    value_str = value_str.replace("\r", "\\r")
+
+    return value_str
 
 
 def alert_to_cef(alert: Dict[str, Any], host_name: str = "traffic-analyser") -> str:
@@ -13,6 +37,12 @@ def alert_to_cef(alert: Dict[str, Any], host_name: str = "traffic-analyser") -> 
     Convert alert to Common Event Format (CEF) for SIEM systems.
     CEF format: CEF:Version|Device Vendor|Device Product|Device Version|Signature ID|Name|Severity|Extension
     """
+    try:
+        # Sanitize alert before processing
+        alert = sanitize_alert(alert, strict=False)
+    except Exception as e:
+        logger.warning(f"Failed to sanitize alert: {e}")
+    
     timestamp = datetime.utcnow().strftime("%b %d %Y %H:%M:%S")
 
     alert_type = alert.get("Type", "Unknown")
@@ -20,29 +50,30 @@ def alert_to_cef(alert: Dict[str, Any], host_name: str = "traffic-analyser") -> 
     source = alert.get("Source", "unknown")
     dest = alert.get("Destination", "unknown")
 
-    # Build CEF extension fields
+    # Build CEF extension fields with proper escaping
     extensions = {
-        "src": source,
-        "dst": dest,
-        "severity": alert.get("Severity", "MEDIUM"),
-        "alertType": alert_type,
+        "src": _escape_cef_value(source),
+        "dst": _escape_cef_value(dest),
+        "severity": _escape_cef_value(alert.get("Severity", "MEDIUM")),
+        "alertType": _escape_cef_value(alert_type),
     }
 
-    # Add optional fields
+    # Add optional fields with escaping
     if "Protocol" in alert:
-        extensions["app"] = alert["Protocol"]
+        extensions["app"] = _escape_cef_value(alert["Protocol"])
     if "Count" in alert:
-        extensions["cnt"] = alert["Count"]
+        extensions["cnt"] = _escape_cef_value(alert["Count"])
     if "Ports Count" in alert:
-        extensions["devicePort"] = alert["Ports Count"]
+        extensions["devicePort"] = _escape_cef_value(alert["Ports Count"])
     if "Info" in alert:
-        extensions["msg"] = alert["Info"][:512]  # Limit message length
+        info = str(alert["Info"])[:512]  # Limit message length
+        extensions["msg"] = _escape_cef_value(info)
 
     extension_str = "|".join(f"{k}={v}" for k, v in extensions.items())
 
     cef_message = (
         f"CEF:0|SecurityLabs|TrafficAnalyser|1.0|{_get_signature_id(alert_type)}|"
-        f"{alert_type}|{severity}|{extension_str}"
+        f"{_escape_cef_value(alert_type)}|{severity}|{extension_str}"
     )
 
     return f"{timestamp} {host_name} {cef_message}"
@@ -50,6 +81,12 @@ def alert_to_cef(alert: Dict[str, Any], host_name: str = "traffic-analyser") -> 
 
 def alert_to_json(alert: Dict[str, Any]) -> Dict[str, Any]:
     """Convert alert to JSON structure suitable for Wazuh API."""
+    try:
+        # Sanitize alert before JSON conversion
+        alert = sanitize_alert(alert, strict=False)
+    except Exception as e:
+        logger.warning(f"Failed to sanitize alert for JSON: {e}")
+    
     return {
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "type": alert.get("Type", "Unknown"),
@@ -74,10 +111,16 @@ def write_cef_log(alerts: List[Dict[str, Any]], log_file: str) -> None:
         logger.error(f"Error writing CEF log: {e}")
 
 
-def send_to_wazuh_api(alerts: List[Dict[str, Any]], wazuh_url: str, auth_token: str) -> bool:
+def send_to_wazuh_api(alerts: List[Dict[str, Any]], wazuh_url: str, auth_token: str, verify_ssl: bool = True) -> bool:
     """
     Send alerts to Wazuh API.
     Requires: wazuh_url (e.g., "https://wazuh-manager:55000") and valid auth token.
+
+    Args:
+        alerts: List of alert dictionaries
+        wazuh_url: Wazuh Manager API URL
+        auth_token: API authentication token
+        verify_ssl: Verify SSL certificates (default True for security)
     """
     import requests
 
@@ -85,27 +128,41 @@ def send_to_wazuh_api(alerts: List[Dict[str, Any]], wazuh_url: str, auth_token: 
         return True
 
     try:
+        # Validate URL format
+        if not wazuh_url or not isinstance(wazuh_url, str):
+            logger.error("Invalid Wazuh URL provided")
+            return False
+        
+        if not wazuh_url.startswith("http"):
+            logger.error("Wazuh URL must start with http or https")
+            return False
+        
         headers = {
             "Authorization": f"Bearer {auth_token}",
             "Content-Type": "application/json",
         }
 
         for alert in alerts:
-            json_alert = alert_to_json(alert)
-            response = requests.post(
-                f"{wazuh_url}/events",
-                json=json_alert,
-                headers=headers,
-                verify=False,  # Set to True in production with proper certificates
-                timeout=10,
-            )
-
-            if response.status_code not in [200, 201]:
-                logger.warning(
-                    f"Failed to send alert to Wazuh: {response.status_code} - {response.text}"
+            try:
+                json_alert = alert_to_json(alert)
+                response = requests.post(
+                    f"{wazuh_url}/events",
+                    json=json_alert,
+                    headers=headers,
+                    verify=verify_ssl,  # SSL certificate verification enabled
+                    timeout=10,
                 )
-            else:
-                logger.debug(f"Alert sent to Wazuh successfully")
+
+                if response.status_code not in [200, 201]:
+                    logger.warning(
+                        f"Failed to send alert to Wazuh: {response.status_code} - {response.text[:200]}"
+                    )
+                else:
+                    logger.debug(f"Alert sent to Wazuh successfully")
+            
+            except Exception as e:
+                logger.error(f"Error sending individual alert to Wazuh: {e}")
+                continue
 
         return True
     except ImportError:

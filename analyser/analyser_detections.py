@@ -33,6 +33,7 @@ def _is_valid_mac(mac_str: str) -> bool:
     mac_str = mac_str.strip()
     return len(mac_str) == 17 and all(c in "0123456789abcdefABCDEF:-" for c in mac_str)
 
+
 def detect_insecure_protocols(packets):
     alerts = []
     for p in packets:
@@ -150,4 +151,88 @@ def detect_port_scans_time_window(
                     "PortsSample": sorted(list(window_ports))[:10]
                 })
                 break
+    return alerts
+
+
+def detect_malicious_ips(packets, threat_intel):
+    """
+    Detect packets from known malicious IPs using local threat intelligence.
+    
+    Args:
+        packets: List of packet dictionaries
+        threat_intel: ThreatIntelligence instance
+        
+    Returns:
+        List of alerts for malicious IP detections
+    """
+    if not threat_intel:
+        return []
+    
+    alerts = []
+    checked_sources = set()
+    
+    for p in packets:
+        source = p.get("Source", "")
+        
+        # Skip if already checked or invalid
+        if not source or source in checked_sources:
+            continue
+        
+        # Try to extract IP from MAC or use as-is
+        checked_sources.add(source)
+        
+        is_malicious, reputation = threat_intel.is_malicious(source)
+        
+        if is_malicious and reputation:
+            alerts.append({
+                "Type": "Malicious IP Detected",
+                "Severity": reputation.get("threat_level", "MEDIUM"),
+                "Source": source,
+                "Reputation Score": reputation.get("reputation_score", 0),
+                "Threat Types": ", ".join(reputation.get("threat_types", [])),
+                "Source Feed": reputation.get("source", "unknown"),
+                "Info": f"IP reputation score: {reputation.get('reputation_score', 'unknown')}"
+            })
+    
+    return alerts
+
+
+def detect_reputation_based_anomalies(packets, threat_intel, threshold=50):
+    """
+    Detect anomalies based on IP reputation scores.
+    
+    Args:
+        packets: List of packet dictionaries
+        threat_intel: ThreatIntelligence instance
+        threshold: Reputation score threshold (0-100)
+        
+    Returns:
+        List of alerts for reputation-based anomalies
+    """
+    if not threat_intel:
+        return []
+    
+    alerts = []
+    source_scores = defaultdict(list)
+    
+    for p in packets:
+        source = p.get("Source", "")
+        if source:
+            score = threat_intel.get_reputation_score(source)
+            if score > 0:
+                source_scores[source].append(score)
+    
+    # Alert on sources with average reputation score above threshold
+    for source, scores in source_scores.items():
+        avg_score = sum(scores) / len(scores)
+        if avg_score > threshold:
+            alerts.append({
+                "Type": "High Reputation Score Anomaly",
+                "Severity": "HIGH" if avg_score > 80 else "MEDIUM",
+                "Source": source,
+                "Average Reputation Score": round(avg_score, 2),
+                "Packet Count": len(scores),
+                "Max Score": max(scores),
+            })
+    
     return alerts

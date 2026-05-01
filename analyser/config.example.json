@@ -1,0 +1,39 @@
+{
+  "comment": "Traffic Analyser Security Configuration",
+  "comment_2": "This file can be loaded by security_config.py",
+  "comment_3": "Environment variables will override these settings",
+  
+  "ddos_enabled": true,
+  "ddos_request_threshold": 100,
+  "ddos_time_window_seconds": 60,
+  "ddos_alert_threshold": 50,
+  
+  "rate_limit_enabled": true,
+  "rate_limit_requests_per_minute": 60,
+  
+  "threat_intel_enabled": true,
+  "threat_feeds_dir": "data/threat_feeds",
+  "threat_cache_enabled": true,
+  "threat_cache_ttl_hours": 24,
+  
+  "validate_inputs": true,
+  "max_input_length": 10000,
+  "max_alert_message_length": 512,
+  
+  "wazuh_enabled": true,
+  "wazuh_connection_timeout": 10,
+  "wazuh_retry_attempts": 3,
+  "wazuh_retry_delay_seconds": 2,
+  "wazuh_batch_size": 50,
+  "wazuh_verify_ssl": true,
+  
+  "syslog_enabled": false,
+  "syslog_host": "localhost",
+  "syslog_port": 514,
+  
+  "cef_enabled": true,
+  "cef_log_file": "data/alerts.cef",
+  
+  "audit_logging_enabled": true,
+  "audit_log_file": "data/analyser_audit.log"
+}
